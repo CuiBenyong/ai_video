@@ -1,0 +1,44 @@
+x-common-volumes: &common-volumes
+  - ./:/MoneyPrinterTurbo
+
+services:
+  webui:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: "webui"
+    ports:
+      - "8501:8501"
+    command: [ "streamlit", "run", "./webui/Main.py","--browser.serverAddress=127.0.0.1","--server.enableCORS=True","--browser.gatherUsageStats=False" ]
+    volumes: *common-volumes
+    restart: always
+    networks:
+      - default
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: "api"
+    ports:
+      - "8080:8080"
+    command: [ "python3", "main.py" ]
+    volumes: *common-volumes
+    restart: always
+    links: 
+      - mysql:mysql
+    environment:
+      - MYSQL_HOST=mysql
+      - MYSQL_DATABASE=ai_video
+    networks:
+      - default
+  mysql: # 服务名称
+    image: mysql:latest # 或其它mysql版本
+    container_name: mysql # 容器名称
+    environment:
+      - MYSQL_ROOT_PASSWORD=123456 # root用户密码
+      - MYSQL_DATABASE=ai_video
+#      - TZ=Asia/Shanghai # 设置容器时区 我这里通过下面挂载方式同步的宿主机时区和时间了,这里忽略
+    ports:
+      - 3306:3306 # 指定宿主机端口与容器端口映射关系，宿主机:
+    networks:
+      - default
