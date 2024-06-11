@@ -173,7 +173,7 @@ class VideoTermsRequest(VideoTermsParams, BaseModel):
     pass
 
 
-class RegisterParams:
+class RegisterParams(BaseModel):
     """
     {
       "phone": "12345678901",
@@ -181,11 +181,13 @@ class RegisterParams:
       "name": "张三"
     }
     """
-    phone: Optional[str] = "12345678901"
-    password: Optional[str] = "123456"
-    name: Optional[str] = "张三"
+    phone: str = "12345678901"
+    password: str = "123456"
+    username: str = "张三"
 
 
+class RegisterRequest(RegisterParams, BaseModel):
+    pass
 
 
 ######################################################################################################

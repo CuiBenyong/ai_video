@@ -1,7 +1,11 @@
 import locale
 import os
 import platform
+import random
+import string
 import threading
+import uuid
+import datetime
 from typing import Any
 from loguru import logger
 import json
@@ -226,3 +230,20 @@ def load_locales(i18n_dir):
 
 def parse_extension(filename):
     return os.path.splitext(filename)[1].strip().lower().replace(".", "")
+
+
+
+def generate_random_username(length=8):
+    letters = string.ascii_letters + string.digits  # 定义要使用的字符
+    username = ''.join(random.choice(letters) for _ in range(length))  # 生成随机字符串
+    return username
+
+def generate_random_username_weighted(length=8):
+    letters = list(string.ascii_letters + string.digits)  # 定义要使用的字符
+    letters[0:26] *= 3  # 大写字母weight加权
+    letters[26:] *= 2  # 小写字母和数字weight加权
+    username = ''.join(random.choice(letters) for _ in range(length))  # 生成随机字符串
+    return username
+
+def generate_token():
+    return str(uuid.uuid4())
