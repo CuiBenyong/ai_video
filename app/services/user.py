@@ -9,8 +9,9 @@ def register(phone: str, username: str, password: str):
    print(f"body: {phone} {username} {password}")
    with UsingMysql(log_time=True) as um:
       sql = "INSERT INTO `ai_user` (`username`, `phone`, `password`) VALUES (%s, %s, %s)"
-      md5_hash = hashlib.md5(password.encode('utf-8')).hexdigest()
-
+      md5 = hashlib.md5()
+      md5.update(password.encode())
+      md5_hash = md5.hexdigest()
       um.cursor.execute(sql, username, phone, md5_hash)
       if um.cursor.rowcount == 1:
          user = um.fetch_one("SELECT * FROM `ai_user` WHERE `phone` = %s", phone)
