@@ -173,6 +173,21 @@ class VideoTermsRequest(VideoTermsParams, BaseModel):
     pass
 
 
+class RegisterParams:
+    """
+    {
+      "phone": "12345678901",
+      "password": "123456",
+      "name": "张三"
+    }
+    """
+    phone: Optional[str] = "12345678901"
+    password: Optional[str] = "123456"
+    name: Optional[str] = "张三"
+
+
+
+
 ######################################################################################################
 ######################################################################################################
 ######################################################################################################
@@ -291,3 +306,17 @@ class BgmUploadResponse(BaseResponse):
                 }
             },
         }
+
+class RegisterResponse(BaseResponse):
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "status": 200,
+                "message": "success",
+                "data": {
+                    "uid": "1",
+                    "phone": '12345678901',
+                }
+            },
+        }
+
