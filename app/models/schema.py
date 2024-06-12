@@ -188,6 +188,19 @@ class RegisterParams(BaseModel):
 
 class RegisterRequest(RegisterParams, BaseModel):
     pass
+class LoginParams(BaseModel):
+    """
+    {
+      "phone": "12345678901",
+      "password": "123456"
+    }
+    """
+    phone: str = "12345678901"
+    password: str = "123456"
+
+
+class LoginRequest(LoginParams, BaseModel):
+    pass
 
 
 ######################################################################################################
@@ -317,7 +330,7 @@ class RegisterResponse(BaseResponse):
                 "message": "success",
                 "data": {
                     "uid": "1",
-                    "phone": '12345678901',
+                    "token": '12345678901',
                 }
             },
         }
