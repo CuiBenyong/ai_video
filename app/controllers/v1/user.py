@@ -10,8 +10,8 @@ router = new_router()
 
 
 @router.post("/register", response_model=RegisterResponse, summary="Create an account for the user")
-def register(request: Request, req: RegisterRequest):
-    print(f"register {request}")
+def register(res: Response, req: RegisterRequest):
+
     body = req.dict()
     name = body['username'] or utils.generate_random_username_weighted()
     if not body['phone']:
@@ -19,6 +19,7 @@ def register(request: Request, req: RegisterRequest):
     if not body['password']:
         return utils.get_response(400, "password is required")
     response = user.register(phone=body['phone'], password=body['password'], username=name)
+    res.set_cookie("token", response['token'], httponly=True, max_age=60*60*24*7)
     return utils.get_response(200, response)
 
 @router.post("/login", response_model=RegisterResponse, summary="Login to the user account")

@@ -11,7 +11,7 @@ def register(phone: str, username: str, password: str):
    with UsingMysql(log_time=True) as um:
       has = um.fetch_one("SELECT * FROM `ai_user` WHERE `phone` = %s OR `username` = %s", (phone, username))
       if has:
-          return {"code": 1, "msg": "用户已存在"}
+         return {"code": 1, "msg": "用户已存在"}
       sql = "INSERT INTO `ai_user` (`username`, `phone`, `password`) VALUES (%s, %s, %s)"
       md5 = hashlib.md5()
       md5.update(password.encode())
@@ -27,11 +27,11 @@ def register(phone: str, username: str, password: str):
             return {"code": 0, "msg": "注册成功", "token": token }
          return {"code": 1, "msg": "注册失败"}
       if um.cursor.rowcount == 0:
-        return {"code": 1, "msg": "注册失败"}
+         return {"code": 1, "msg": "注册失败"}
    return {"code": 0, "msg": "注册成功"}
 
 def login(phone: str, password: str):
-    with UsingMysql(log_time=True) as um:
+   with UsingMysql(log_time=True) as um:
       md5 = hashlib.md5() 
       md5.update(password.encode())
       md5_hash = md5.hexdigest()

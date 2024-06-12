@@ -56,15 +56,13 @@ else:
 
 @router.post("/videos", response_model=TaskResponse, summary="Generate a short video")
 def create_video(background_tasks: BackgroundTasks, request: Request, body: TaskVideoRequest):
-    token =request.cookies["token"]
-
-
-
     task_id = utils.get_uuid()
     request_id = base.get_task_id(request)
-    if not token:
-      raise HttpException(task_id=task_id, status_code=401, message=f"{request_id}: Unauthorized")
-   
+    
+    # if 'cookie' not in request.cookies:
+    #     raise HttpException(task_id=task_id, status_code=401, message=f"{request_id}: Unauthorized")
+    token =request.cookies["token"]
+
     with mysql_utils.UsingMysql() as ms:
         userToken = ms.fetch_one("SELECT uid FROM ai_user_tokens WHERE token = %s", (token))
         if not userToken:
@@ -89,8 +87,8 @@ def create_video(background_tasks: BackgroundTasks, request: Request, body: Task
 
 
 @router.get("/tasks/{task_id}", response_model=TaskQueryResponse, summary="Query task status")
-def get_task(request: Request, task_id: str = Path(..., description="Task ID"),
-             query: TaskQueryRequest = Depends()):
+def get_task(request: Request, task_id: str = Path(..., description="Task ID"), query: TaskQueryRequest = Depends()):
+    
     endpoint = config.app.get("endpoint", "")
     if not endpoint:
         endpoint = str(request.base_url)
