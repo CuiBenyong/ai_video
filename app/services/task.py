@@ -10,12 +10,13 @@ from loguru import logger
 from app.config import config
 from app.models import const
 from app.models.schema import VideoParams, VideoConcatMode
-from app.services import llm, material, voice, video, subtitle
+from app.services import llm, material, voice, video, subtitle, image
 from app.services import state as sm
 from app.utils import utils
+from app.utils.mysql import UsingMysql
 
 
-def start(task_id, params: VideoParams):
+def start(task_id, params: VideoParams, uid: int):
     """
     {
         "video_subject": "",
@@ -156,8 +157,8 @@ def start(task_id, params: VideoParams):
         
         for i in range(paragraph_number):
             index = i + 1
-            taskId = generate_images(task_id=task_id, text=video_script_terms[i], style="超现实主义", num=1,video_aspect=params.video_aspect)
-            task_ids.append(taskId)
+            # taskId = generate_images(task_id=task_id, text=video_script_terms[i], style="超现实主义", num=1,video_aspect=params.video_aspect)
+            task_ids.append(index)
         
     if not task_ids:
         sm.state.update_task(task_id, state=const.TASK_STATE_FAILED)
@@ -166,12 +167,15 @@ def start(task_id, params: VideoParams):
         return
 
     sm.state.update_task(task_id, state=const.TASK_STATE_PROCESSING, progress=50)
-    videos = []
+    # images = []
     for taskId in task_ids:
         # downloaded_videos.append(material.get_video_path(taskId))
         v = get_images(task_id=taskId)
-        videos.append(v)
-        logger.info(f"\n\n## combining video: {videos}")
+        # images.append(v)
+        url = image.merge_image_to_video_moviepy(image=v['path'], base_dir=utils.task_dir(task_id), duration=3)
+        downloaded_videos.append(url)
+        logger.info(f"\n\n## combining images: {v}")
+        
         
     # logger.info(f"\n\n## got images : {index} => {combined_video_path}")
 
@@ -179,20 +183,20 @@ def start(task_id, params: VideoParams):
     combined_video_paths = []
     video_concat_mode = params.video_concat_mode
     if params.video_count > 1:
-        video_concat_mode = VideoConcatMode.random
+        video_concat_mode = VideoConcatMode.sequential
     print(f"AI生成后的视频列表-{downloaded_videos}")
     _progress = 50
-    for i in range(len(downloaded_videos)):
+    for i in range(params.video_count):
         index = i + 1
         combined_video_path = path.join(utils.task_dir(task_id), f"combined-{index}.mp4")
         logger.info(f"\n\n## combining video: {index} => {combined_video_path}")
-        # video.combine_videos(combined_video_path=combined_video_path,
-        #                      video_paths=downloaded_videos,
-        #                      audio_file=audio_file,
-        #                      video_aspect=params.video_aspect,
-        #                      video_concat_mode=video_concat_mode,
-        #                      max_clip_duration=max_clip_duration,
-        #                      threads=n_threads)
+        video.combine_videos(combined_video_path=combined_video_path,
+                             video_paths=downloaded_videos,
+                             audio_file=audio_file,
+                             video_aspect=params.video_aspect,
+                             video_concat_mode=video_concat_mode,
+                             max_clip_duration=max_clip_duration,
+                             threads=n_threads)
 
         _progress += 50 / params.video_count / 2
         sm.state.update_task(task_id, progress=_progress)
@@ -201,12 +205,12 @@ def start(task_id, params: VideoParams):
 
         logger.info(f"\n\n## generating video: {index} => {final_video_path}")
         # Put everything together
-        # video.generate_video(video_path=combined_video_path,
-        #                      audio_path=audio_file,
-        #                      subtitle_path=subtitle_path,
-        #                      output_file=final_video_path,
-        #                      params=params,
-        #                      )
+        video.generate_video(video_path=combined_video_path,
+                             audio_path=audio_file,
+                             subtitle_path=subtitle_path,
+                             output_file=final_video_path,
+                             params=params,
+                             )
 
         _progress += 50 / params.video_count / 2
         sm.state.update_task(task_id, progress=_progress)

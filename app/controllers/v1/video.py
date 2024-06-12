@@ -3,7 +3,7 @@ import glob
 import pathlib
 import shutil
 
-from fastapi import Request, Depends, Path, BackgroundTasks, UploadFile
+from fastapi import Request, Depends, Path, BackgroundTasks, UploadFile, Cookie
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.params import File
 from loguru import logger
@@ -18,7 +18,7 @@ from app.models.schema import TaskVideoRequest, TaskQueryResponse, TaskResponse,
     BgmUploadResponse, BgmRetrieveResponse, TaskDeletionResponse
 from app.services import task as tm
 from app.services import state as sm
-from app.utils import utils
+from app.utils import utils, mysql as mysql_utils
 
 # 认证依赖项
 # router = new_router(dependencies=[Depends(base.verify_token)])
@@ -56,18 +56,33 @@ else:
 
 @router.post("/videos", response_model=TaskResponse, summary="Generate a short video")
 def create_video(background_tasks: BackgroundTasks, request: Request, body: TaskVideoRequest):
+    token =request.cookies["token"]
+
+
+
     task_id = utils.get_uuid()
     request_id = base.get_task_id(request)
+    if not token:
+      raise HttpException(task_id=task_id, status_code=401, message=f"{request_id}: Unauthorized")
+   
+    with mysql_utils.UsingMysql() as ms:
+        userToken = ms.fetch_one("SELECT uid FROM ai_user_tokens WHERE token = %s", (token))
+        if not userToken:
+            logger.error(f"token {token} is invalid.")
+            raise HttpException(task_id=task_id, status_code=401, message=f"{request_id}: Unauthorized")
     try:
         task = {
             "task_id": task_id,
             "request_id": request_id,
             "params": body.dict(),
+            "token": token,
         }
+
+        logger.info(f"create video: {utils.to_json(task)} token {token} uid {userToken}")
         sm.state.update_task(task_id)
         # background_tasks.add_task(tm.start, task_id=task_id, params=body)
-        task_manager.add_task(tm.start, task_id=task_id, params=body)
-        logger.success(f"video created: {utils.to_json(task)}")
+        task_manager.add_task(tm.start, task_id=task_id, params=body, uid=userToken['uid'])
+        # logger.success(f"video created: {utils.to_json(task)}")
         return utils.get_response(200, task)
     except ValueError as e:
         raise HttpException(task_id=task_id, status_code=400, message=f"{request_id}: {str(e)}")

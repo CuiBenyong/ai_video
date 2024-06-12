@@ -21,7 +21,7 @@ def register(request: Request, req: RegisterRequest):
     response = user.register(phone=body['phone'], password=body['password'], username=name)
     return utils.get_response(200, response)
 
-@router.get("/login", response_model=RegisterResponse, summary="Login to the user account")
+@router.post("/login", response_model=RegisterResponse, summary="Login to the user account")
 def login(res: Response, req: LoginRequest):
     print(f"login {res}")
     body = req.dict()

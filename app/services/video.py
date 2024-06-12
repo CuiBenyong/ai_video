@@ -126,6 +126,7 @@ def combine_videos(combined_video_path: str,
                                temp_audiofile_path=output_dir,
                                audio_codec="aac",
                                fps=30,
+                               codec="libx264"
                                )
     video_clip.close()
     logger.success(f"completed")

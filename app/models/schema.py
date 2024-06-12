@@ -94,7 +94,7 @@ class VideoParams(BaseModel):
     }
     """
     video_subject: str
-    video_script: str = ""  # 用于生成视频的脚本
+    video_script: str = "1"  # 用于生成视频的脚本
     video_terms: Optional[str | list] = None  # 用于生成视频的关键词
     video_aspect: Optional[VideoAspect] = VideoAspect.portrait.value
     video_concat_mode: Optional[VideoConcatMode] = VideoConcatMode.random.value
@@ -106,7 +106,7 @@ class VideoParams(BaseModel):
 
     video_language: Optional[str] = ""  # auto detect
 
-    voice_name: Optional[str] = ""
+    voice_name: Optional[str] = "zh-CN-XiaoxiaoNeural-Female"
     voice_volume: Optional[float] = 1.0
     bgm_type: Optional[str] = "random"
     bgm_file: Optional[str] = ""
