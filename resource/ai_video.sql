@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS ai_task_video_gen(
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '任务创建时间',
   `finished_at` TIMESTAMP DEFAULT NULL COMMENT '任务完成时间',
   `percent` INT DEFAULT 0 COMMENT '任务完成百分比',
-  `status` INT DEFAULT 0 COMMENT '任务状态。 0： 待完成 1：成功 2：失败',
+  `status` INT DEFAULT 0 COMMENT '任务状态。 4： 待完成 1：成功 -1：失败',
   `reason` VARCHAR(255) DEFAULT NULL COMMENT '任务失败时记录原因',
   PRIMARY KEY(`vid_id`),
   FOREIGN KEY(`uid`) REFERENCES `ai_user`(`uid`)

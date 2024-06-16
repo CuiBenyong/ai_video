@@ -1,6 +1,6 @@
 from fastapi import Request, Response
 from app.controllers.v1.base import new_router
-from app.models.schema import RegisterResponse, RegisterRequest, LoginRequest
+from app.models.schema import RegisterResponse, RegisterRequest, LoginRequest, TaskListResponse, TaskHistoryRequest
 from app.services import user
 from app.utils import utils
 
@@ -33,3 +33,26 @@ def login(res: Response, req: LoginRequest):
     response = user.login(phone=body['phone'], password=body['password'])
     res.set_cookie("token", response['token'], httponly=True, max_age=60*60*24*7)
     return utils.get_response(200, response)
+
+@router.post("/logout", summary="Logout the user account")
+def logout(res: Response):
+    res.delete_cookie("token")
+    return utils.get_response(200, "logout successfully")
+
+@router.get("/tasks_history",response_model=TaskListResponse, summary="Get the user account information")
+def task_history(res: Response, req: TaskHistoryRequest):
+    page_size = req['page_size'] or 10
+    offset = req['offset'] or 1
+    
+    uid = utils.get_current_user_id()
+    if not uid:
+        return utils.get_response(401, "Unauthorized")
+    with utils.UsingMysql() as mysql:
+        sql = f"select * from ai_task_video_gen where uid = {uid} limit {page_size} offset {offset} order by created_at desc"
+        tasks = mysql.query(sql)
+    res = {
+        "list": tasks,
+        "page_size": page_size,
+        "offset": offset
+    }
+    return utils.get_response(200, "task list")

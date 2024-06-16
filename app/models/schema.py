@@ -93,8 +93,9 @@ class VideoParams(BaseModel):
       "stroke_width": 1.5
     }
     """
-    video_subject: str
+    video_subject: str  # 视频主题
     video_script: str = "1"  # 用于生成视频的脚本
+    video_subtitle: Optional[str] = None  # 用于生成视频的字幕
     video_terms: Optional[str | list] = None  # 用于生成视频的关键词
     video_aspect: Optional[VideoAspect] = VideoAspect.portrait.value
     video_concat_mode: Optional[VideoConcatMode] = VideoConcatMode.random.value
@@ -335,3 +336,31 @@ class RegisterResponse(BaseResponse):
             },
         }
 
+
+class TaskListResponse(BaseResponse):
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "status": 200,
+                "message": "success",
+                "data": {
+                    "list": [],
+                    "page_size": 20,
+                    "offset": 0,
+                }
+            },
+        }
+
+
+class TaskHistoryParams(BaseModel):
+    """
+    {
+      "page_size": 20,
+      "offset": 1
+    }
+    """
+    page_size: int = 20
+    offset: int = 1
+
+class TaskHistoryRequest(TaskHistoryParams, BaseModel):
+    pass

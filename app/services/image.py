@@ -37,11 +37,6 @@ def generate_images(task_id: str,
                     style: str,
                     video_aspect: VideoAspect = VideoAspect.portrait,
                     num: int = 1,):
-    with UsingMysql(log_time=True) as um:
-        videos = um.fetch_all("select * from ai_task_video_gen")
-        logger.info(f"videos: {videos}")
-        
-            
     images = []
     access_token = getAccessToken()
     # url  = "https://aip.baidubce.com/rpc/2.0/ernievilg/v1/txt2img?access_token=" + access_token
@@ -62,25 +57,70 @@ def generate_images(task_id: str,
     response = requests.request("POST", url, headers=headers, data=params)
     res = json.loads(response.text)
     
+    if "data" in res:
+        log_id = res["log_id"]
+        taskId = res["data"]["taskId"]
+        with UsingMysql(log_time=True) as um:
+            video = um.fetch_one("select * from ai_task_video_gen where task_id = %s", task_id)
+            if video:
+                sql = f"insert into ai_task_img_gen (vid_id, text_content, style, resolution, log_id, taskId) values (%s, %s, %s, %s, %s, %s)"
+                um.execute(sql, video["vid_id"], text, style, video_aspect.value, log_id, taskId)
+            else:
+                raise Exception("video not found")
+            
     return res["data"]["taskId"]
 
-def get_images(task_id: str):
-    return {
-        "style": "油画",
-        "taskId": 1798207147175732651,
-        "imgUrls": [
-            {
-                "image": "http://bj.bcebos.com/v1/ai-picture-creation/watermark/60d1e8cc4f6406c4dffdfa2976150872ex.jpg?authorization=bce-auth-v1%2FALTAKBvI5HDpIAzJaklvFTUfAz%2F2024-03-20T11%3A10%3A07Z%2F86400%2F%2F17ec73c2d89b68746f656a7f74beba2cab7de026ba30ab0ab7ca4fe980bf19ad",
-                "img_approve_conclusion": "paas"
-            }
-        ],
-        "text": "睡莲",
-        "status": 1,
-        "createTime": "2024-03-20 19:09:49",
-        "img": "http://bj.bcebos.com/v1/ai-picture-creation/watermark/60d1e8cc4f6406c4dffdfa2976150872ex.jpg?authorization=bce-auth-v1%2FALTAKBvI5HDpIAzJaklvFTUfAz%2F2024-03-20T11%3A10%3A07Z%2F86400%2F%2F17ec73c2d89b68746f656a7f74beba2cab7de026ba30ab0ab7ca4fe980bf19ad",
-        "waiting": "0",
-        "path": f"{task_id}.jpg"
+async def get_images(taskId: str):
+    
+    #1.先看目录下有没有已经下载好的图片，若有则直接返回图片路径
+    
+    file_path = os.path.join(utils.task_dir("images"), f"{taskId}.jpg")
+    if os.path.exists(file_path):
+        return {
+            "path": file_path
+        }
+    
+    #2。请求接口查询生成状态
+    #   若已生成，则下载图片并返回图片路径 
+    #   若未生成，则根据接口返回的预计等待时间，等待后再次请求接口查询生成状态
+    
+    
+    access_token = getAccessToken()
+    # The line `# url  = "https://aip.baidubce.com/rpc/2.0/wenxin/v1/basic/getImg?access_token=" +
+    # access_token` is a commented-out line of code in the Python script. It seems to be a placeholder
+    # or a reference to an API endpoint for getting images using the Baidu AI platform.
+    url  = "https://aip.baidubce.com/rpc/2.0/wenxin/v1/basic/getImg?access_token=" + access_token
+    # url = 'http://192.168.10.102:3000/generateImage'
+    logger.info(f"generate_images: {url} {access_token}")  
+    params = {
+       "taskId": taskId
     }
+        
+    headers = {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+    }
+    
+    response = requests.request("POST", url, headers=headers, data=params)
+    res = json.loads(response.text)
+    
+    if "data" in res:
+        waiting = res["data"]["waiting"]
+        if waiting:
+            await asyncio.sleep(waiting)
+            return get_images(taskId)
+        else:
+            img = res["data"]["img"]
+            img = requests.get(img)
+            with open(file_path, "wb") as f:
+                f.write(img.content)
+            return {
+                "path": file_path
+            }
+    else:
+        return {
+            "path": None
+        }
 
 
 if __name__ == "__main__":

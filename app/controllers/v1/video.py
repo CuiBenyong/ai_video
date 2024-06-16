@@ -59,8 +59,8 @@ def create_video(background_tasks: BackgroundTasks, request: Request, body: Task
     task_id = utils.get_uuid()
     request_id = base.get_task_id(request)
     
-    # if 'cookie' not in request.cookies:
-    #     raise HttpException(task_id=task_id, status_code=401, message=f"{request_id}: Unauthorized")
+    if 'token' not in request.cookies:
+        raise HttpException(task_id=task_id, status_code=401, message=f"{request_id}: Unauthorized")
     token =request.cookies["token"]
 
     with mysql_utils.UsingMysql() as ms:
@@ -79,6 +79,11 @@ def create_video(background_tasks: BackgroundTasks, request: Request, body: Task
         logger.info(f"create video: {utils.to_json(task)} token {token} uid {userToken}")
         sm.state.update_task(task_id)
         # background_tasks.add_task(tm.start, task_id=task_id, params=body)
+        
+        with mysql_utils.UsingMysql() as ms:
+            ms.execute("INSERT INTO ai_task_video_gen (task_id, uid, script, style, resolution) VALUES (%s, %s, %s, %s, %s)",
+                       (task_id, userToken['uid'], body.text, body.style, body.resolution))
+        
         task_manager.add_task(tm.start, task_id=task_id, params=body, uid=userToken['uid'])
         # logger.success(f"video created: {utils.to_json(task)}")
         return utils.get_response(200, task)
@@ -237,3 +242,19 @@ async def download_video(_: Request, file_path: str):
     }
     return FileResponse(path=video_path, headers=headers, filename=f"{filename}{extension}",
                         media_type=f'video/{extension[1:]}')
+
+
+@router.post("generate_video", response_model=TaskResponse, summary="Generate a short video")
+def generate_video(request: Request, body: TaskVideoRequest):
+    task_id = utils.get_uuid()
+    request_id = base.get_task_id(request)
+    try:
+        task = {
+            "task_id": task_id,
+            "request_id": request_id,
+            "params": body.dict(),
+        }
+        task_manager.add_task(tm.start, task_id=task_id, params=body)
+        return utils.get_response(200, task)
+    except ValueError as e:
+        raise HttpException(task_id=task_id, status_code=400, message=f"{request_id}: {str(e)}")
