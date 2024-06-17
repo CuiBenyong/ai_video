@@ -63,20 +63,15 @@ def create_video(background_tasks: BackgroundTasks, request: Request, body: Task
         raise HttpException(task_id=task_id, status_code=401, message=f"{request_id}: Unauthorized")
     token =request.cookies["token"]
 
-    with mysql_utils.UsingMysql() as ms:
-        userToken = ms.fetch_one("SELECT uid FROM ai_user_tokens WHERE token = %s", (token))
-        if not userToken:
-            logger.error(f"token {token} is invalid.")
-            raise HttpException(task_id=task_id, status_code=401, message=f"{request_id}: Unauthorized")
     try:
         task = {
             "task_id": task_id,
             "request_id": request_id,
             "params": body.dict(),
-            "token": token,
+            "uid": uid,
         }
 
-        logger.info(f"create video: {utils.to_json(task)} token {token} uid {userToken}")
+        logger.info(f"create video: {utils.to_json(task)} uid {uid}")
         sm.state.update_task(task_id)
         # background_tasks.add_task(tm.start, task_id=task_id, params=body)
         

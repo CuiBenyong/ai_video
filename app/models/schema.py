@@ -177,12 +177,12 @@ class VideoTermsRequest(VideoTermsParams, BaseModel):
 class RegisterParams(BaseModel):
     """
     {
-      "phone": "12345678901",
+      "phone": "17794516365",
       "password": "123456",
       "name": "张三"
     }
     """
-    phone: str = "12345678901"
+    phone: str = "17794516365"
     password: str = "123456"
     username: str = "张三"
 
@@ -192,11 +192,11 @@ class RegisterRequest(RegisterParams, BaseModel):
 class LoginParams(BaseModel):
     """
     {
-      "phone": "12345678901",
+      "phone": "17794516365",
       "password": "123456"
     }
     """
-    phone: str = "12345678901"
+    phone: str = "17794516365"
     password: str = "123456"
 
 

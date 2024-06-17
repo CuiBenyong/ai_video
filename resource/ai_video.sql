@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS ai_user_tokens(
 
 CREATE TABLE IF NOT EXISTS ai_task_video_gen(
   `vid_id` INT NOT NULL AUTO_INCREMENT COMMENT '视频生成任务ID',
+  `task_id` VARCHAR(255) NOT NULL COMMENT '任务ID',
   `uid` INT NOT NULL COMMENT '用户ID',
   `subject` VARCHAR(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '视频主题，用于AI生成文案',
   `resolution` VARCHAR(10) NOT NULL COMMENT '分辨率',
@@ -37,7 +38,8 @@ CREATE TABLE IF NOT EXISTS ai_task_video_gen(
   `status` INT DEFAULT 0 COMMENT '任务状态。 4： 待完成 1：成功 -1：失败',
   `reason` VARCHAR(255) DEFAULT NULL COMMENT '任务失败时记录原因',
   PRIMARY KEY(`vid_id`),
-  FOREIGN KEY(`uid`) REFERENCES `ai_user`(`uid`)
+  FOREIGN KEY(`uid`) REFERENCES `ai_user`(`uid`),
+  UNIQUE KEY `task_id_UNIQUE` (`task_id`)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
 
 CREATE TABLE IF NOT EXISTS ai_task_img_gen(

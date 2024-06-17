@@ -6,6 +6,11 @@
 
 import pymysql
 from timeit import default_timer
+from fastapi import Request, Depends, Path, BackgroundTasks, UploadFile, Cookie
+from app.controllers import base
+from app.models.exception import HttpException
+from loguru import logger
+
 
 host = 'mysql'
 port = 3306
@@ -94,3 +99,19 @@ def check_it():
 
 if __name__ == '__main__':
     check_it()
+
+
+def get_uid(request: Request):
+  request_id = base.get_task_id(request)
+  logger.error(f"request {request} {request.cookies.keys()} {'token' in request.cookies.keys()}")
+  if not request.cookies or 'token' not in request.cookies:
+      raise HttpException(task_id=None, status_code=401, message=f"{request_id}: Unauthorized")
+  token =request.cookies["token"]
+
+  with UsingMysql() as ms:
+      userToken = ms.fetch_one("SELECT uid FROM ai_user_tokens WHERE token = %s", (token))
+      if not userToken:
+          logger.error(f"token {token} is invalid.")
+          raise HttpException(task_id=None, status_code=401, message=f"{request_id}: Unauthorized")
+      uid = userToken["uid"]
+  return uid

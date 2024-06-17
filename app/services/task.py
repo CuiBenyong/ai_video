@@ -16,7 +16,7 @@ from app.utils import utils
 from app.utils.mysql import UsingMysql
 
 
-def start(task_id, params: VideoParams, uid: int):
+def start(task_id, params: VideoParams, uid):
     """
     {
         "video_subject": "",
@@ -30,7 +30,7 @@ def start(task_id, params: VideoParams, uid: int):
         "stroke_width": 1.5
     }
     """
-    logger.info(f"start task: {task_id}")
+    logger.info(f"start task: {task_id} {uid}")
     sm.state.update_task(task_id, state=const.TASK_STATE_PROCESSING, progress=5)
     with UsingMysql() as um:
         task = um.fetch_one("SELECT * FROM ai_task_video_gen WHERE task_id = %s", (task_id))
@@ -305,3 +305,10 @@ def start_generate(task_id, params: VideoParams, uid: int):
     paragraph_number = len(video_script_terms)
     
     
+def generate(task_id, params: VideoParams, uid):
+
+    logger.info(f"generate task: {task_id} uid: {uid} params: {params}")
+    # with UsingMysql() as um:
+    sql = f"INSERT INTO `ai_task_video_gen` (`task_id`, `uid`, `subject`, `resolution`, `style`, `script`, `paragraph`) VALUES ('{task_id}', '{uid}', '{params.video_subject}', '{params.resolution}', '{params.style}', '{params.video_script=}', '{params.paragraph}')"
+    logger.info(f"sql: {sql}")
+    sm.state.update_task(task_id, state=const.TASK_STATE_PROCESSING, progress=5)
