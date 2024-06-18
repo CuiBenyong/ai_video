@@ -103,7 +103,7 @@ if __name__ == '__main__':
 
 def get_uid(request: Request):
   request_id = base.get_task_id(request)
-  logger.error(f"request {request} {request.cookies.keys()} {'token' in request.cookies.keys()}")
+  logger.info(f"request {request} {request.cookies.keys()} {'token' in request.cookies.keys()}")
   if not request.cookies or 'token' not in request.cookies:
       raise HttpException(task_id=None, status_code=401, message=f"{request_id}: Unauthorized")
   token =request.cookies["token"]

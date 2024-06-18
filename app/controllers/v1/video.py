@@ -14,8 +14,7 @@ from app.controllers.manager.memory_manager import InMemoryTaskManager
 from app.controllers.manager.redis_manager import RedisTaskManager
 from app.controllers.v1.base import new_router
 from app.models.exception import HttpException
-from app.models.schema import TaskVideoRequest, TaskQueryResponse, TaskResponse, TaskQueryRequest, \
-    BgmUploadResponse, BgmRetrieveResponse, TaskDeletionResponse
+from app.models.schema import TaskVideoRequest, TaskQueryResponse, TaskResponse, TaskQueryRequest, BgmUploadResponse, BgmRetrieveResponse, TaskDeletionResponse, VideoAspect
 from app.services import task as tm
 from app.services import state as sm
 from app.utils import utils, mysql as mysql_utils
@@ -59,9 +58,10 @@ def create_video(background_tasks: BackgroundTasks, request: Request, body: Task
     task_id = utils.get_uuid()
     request_id = base.get_task_id(request)
     
-    if 'token' not in request.cookies:
-        raise HttpException(task_id=task_id, status_code=401, message=f"{request_id}: Unauthorized")
-    token =request.cookies["token"]
+    try:
+      uid = mysql_utils.get_uid(request)
+    except HttpException as e:
+      raise HttpException(task_id=task_id, status_code=401, message=f"{request_id}: Unauthorized")
 
     try:
         task = {
@@ -76,10 +76,10 @@ def create_video(background_tasks: BackgroundTasks, request: Request, body: Task
         # background_tasks.add_task(tm.start, task_id=task_id, params=body)
         
         with mysql_utils.UsingMysql() as ms:
-            ms.execute("INSERT INTO ai_task_video_gen (task_id, uid, script, style, resolution) VALUES (%s, %s, %s, %s, %s)",
-                       (task_id, userToken['uid'], body.text, body.style, body.resolution))
+            ms.cursor.execute("INSERT INTO ai_task_video_gen (task_id, uid, script, style, resolution) VALUES (%s, %s, %s, %s, %s)",
+                       (task_id, uid, body.text, body.style, body.resolution))
         
-        task_manager.add_task(tm.start, task_id=task_id, params=body, uid=userToken['uid'])
+        task_manager.add_task(tm.start, task_id=task_id, params=body, uid=uid)
         # logger.success(f"video created: {utils.to_json(task)}")
         return utils.get_response(200, task)
     except ValueError as e:
@@ -239,17 +239,26 @@ async def download_video(_: Request, file_path: str):
                         media_type=f'video/{extension[1:]}')
 
 
-@router.post("generate_video", response_model=TaskResponse, summary="Generate a short video")
+@router.post("/generate_video", response_model=TaskResponse, summary="Generate a short video")
 def generate_video(request: Request, body: TaskVideoRequest):
     task_id = utils.get_uuid()
     request_id = base.get_task_id(request)
+    try:
+      uid = mysql_utils.get_uid(request)
+    except HttpException as e:
+      raise HttpException(task_id=task_id, status_code=401, message=f"{request_id}: Unauthorized")
     try:
         task = {
             "task_id": task_id,
             "request_id": request_id,
             "params": body.dict(),
         }
-        task_manager.add_task(tm.start, task_id=task_id, params=body)
+
+        logger.info(f"create video: {len(body.video_script.splitlines())}")
+        with mysql_utils.UsingMysql() as ms:
+            ms.cursor.execute("INSERT INTO ai_task_video_gen (task_id, uid, subject, paragraph, script, style, resolution) VALUES (%s, %s, %s, %s, %s, %s, %s)",
+                       (task_id, uid,body.video_subject,len(body.video_script.splitlines()), body.video_script, '写实风格', VideoAspect(body.video_aspect)))
+            task_manager.add_task(tm.start, task_id=task_id, params=body, uid=uid)
         return utils.get_response(200, task)
     except ValueError as e:
         raise HttpException(task_id=task_id, status_code=400, message=f"{request_id}: {str(e)}")

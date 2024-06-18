@@ -34,6 +34,7 @@ services:
   mysql: # 服务名称
     image: mysql:latest # 或其它mysql版本
     container_name: mysql # 容器名称
+    restart: always
     environment:
       - MYSQL_ROOT_PASSWORD=123456 # root用户密码
       - MYSQL_DATABASE=ai_video

@@ -26,9 +26,9 @@ from moviepy.editor import *
 
 def merge_image_to_video_moviepy(image, base_dir, duration):
     fps = 1
-    clip1 = ImageClip(os.path.join(utils.task_dir(), image), duration=duration)
+    clip1 = ImageClip(image, duration=duration)
     videocct = concatenate_videoclips([clip1])
-    videoPath = f"{base_dir}/{image}.mp4"
+    videoPath = f"{image}.mp4"
     videocct.write_videofile(videoPath, codec="libx264", fps=fps)
     return videoPath
 
@@ -39,42 +39,49 @@ def generate_images(task_id: str,
                     num: int = 1,):
     images = []
     access_token = getAccessToken()
-    # url  = "https://aip.baidubce.com/rpc/2.0/ernievilg/v1/txt2img?access_token=" + access_token
-    url = 'http://192.168.10.102:3000/generateImage'
-    logger.info(f"generate_images: {url} {access_token}")  
-    params = {
-        "text": text,
-        "style": style,
-        "num": num,
-        "resolution": video_aspect.value,
-    }
+    # url  = "https://aip.baidubce.com/rpc/2.0/ernievilg/v1/txt2imgv2?access_token=" + access_token
+    url = 'http://172.16.110.197:3000/generateImage'
+    logger.info(f"generate_images: {url}")  
+    params = json.dumps({
+        "prompt": text,
+        "image_num": num,
+        "width": 720,
+        "height": 1280,
+    })
         
     headers = {
         'Content-Type': 'application/json',
         'Accept': 'application/json'
     }
-    
+    logger.info(f"generate_images params: {params}")
     response = requests.request("POST", url, headers=headers, data=params)
-    res = json.loads(response.text)
     
+    logger.info(f"generate_images response: {response.text}")
+    res = json.loads(response.text)
+    logger.info(f"generate_images: {res}")
     if "data" in res:
         log_id = res["log_id"]
-        taskId = res["data"]["taskId"]
+        taskId = res["data"]["task_id"]
         with UsingMysql(log_time=True) as um:
             video = um.fetch_one("select * from ai_task_video_gen where task_id = %s", task_id)
             if video:
                 sql = f"insert into ai_task_img_gen (vid_id, text_content, style, resolution, log_id, taskId) values (%s, %s, %s, %s, %s, %s)"
-                um.execute(sql, video["vid_id"], text, style, video_aspect.value, log_id, taskId)
+                logger.info(f"generate_images task_id: {task_id}")
+                um.cursor.execute(sql, (video["vid_id"], text, style, video_aspect.value, log_id, taskId))
             else:
                 raise Exception("video not found")
-            
-    return res["data"]["taskId"]
+        return res["data"]["task_id"]
+    else:
+        with UsingMysql(log_time=True) as um:
+          # video = um.fetch_one("select * from ai_task_video_gen where task_id = %s", task_id)
+          um.cursor.execute(f"update ai_task_video_gen set status = {const.TASK_STATE_FAILED} where task_id = '{task_id}'")
+        return None
 
-async def get_images(taskId: str):
+def get_images(logId: str, task_id: str):
     
     #1.先看目录下有没有已经下载好的图片，若有则直接返回图片路径
     
-    file_path = os.path.join(utils.task_dir("images"), f"{taskId}.jpg")
+    file_path = os.path.join(utils.task_dir(task_id), f"{logId}.jpg")
     if os.path.exists(file_path):
         return {
             "path": file_path
@@ -89,12 +96,12 @@ async def get_images(taskId: str):
     # The line `# url  = "https://aip.baidubce.com/rpc/2.0/wenxin/v1/basic/getImg?access_token=" +
     # access_token` is a commented-out line of code in the Python script. It seems to be a placeholder
     # or a reference to an API endpoint for getting images using the Baidu AI platform.
-    url  = "https://aip.baidubce.com/rpc/2.0/wenxin/v1/basic/getImg?access_token=" + access_token
-    # url = 'http://192.168.10.102:3000/generateImage'
+    url  = "https://aip.baidubce.com/rpc/2.0/ernievilg/v1/getImgv2?access_token=" + access_token
+    # url = 'http://172.16.110.197:3000/result'
     logger.info(f"generate_images: {url} {access_token}")  
-    params = {
-       "taskId": taskId
-    }
+    params = json.dumps({
+       "task_id": logId
+    })
         
     headers = {
         'Content-Type': 'application/json',
@@ -102,15 +109,16 @@ async def get_images(taskId: str):
     }
     
     response = requests.request("POST", url, headers=headers, data=params)
+    logger.info(f"generate_images response.text: {response.text}")
     res = json.loads(response.text)
     
     if "data" in res:
-        waiting = res["data"]["waiting"]
-        if waiting:
-            await asyncio.sleep(waiting)
-            return get_images(taskId)
+        task_progress = res["data"]["task_progress"]
+        if task_progress == 0:
+
+            return get_images(logId, task_id=task_id)
         else:
-            img = res["data"]["img"]
+            img = res["data"]["sub_task_result_list"][0]['final_image_list'][0]['img_url']
             img = requests.get(img)
             with open(file_path, "wb") as f:
                 f.write(img.content)

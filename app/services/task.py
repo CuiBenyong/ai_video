@@ -35,7 +35,8 @@ def start(task_id, params: VideoParams, uid):
     with UsingMysql() as um:
         task = um.fetch_one("SELECT * FROM ai_task_video_gen WHERE task_id = %s", (task_id))
         if task:
-            um.execute("UPDATE ai_task_video_gen SET percent = %s, status =  %s  WHERE task_id = %s", (5, const.TASK_STATE_PROCESSING, task_id))
+            um.cursor.execute("UPDATE ai_task_video_gen SET percent = %s, status =  %s  WHERE task_id = %s", (5, const.TASK_STATE_PROCESSING, task_id))
+        
 
     video_subject = params.video_subject
     voice_name = voice.parse_voice_name(params.voice_name)
@@ -58,7 +59,7 @@ def start(task_id, params: VideoParams, uid):
 
     sm.state.update_task(task_id, state=const.TASK_STATE_PROCESSING, progress=10)
     with UsingMysql() as um:
-        um.execute("UPDATE ai_task_video_gen SET percent = %s, status =  %s WHERE task_id = %s", (10, const.TASK_STATE_PROCESSING ,task_id))
+        um.cursor.execute("UPDATE ai_task_video_gen SET percent = %s, status =  %s WHERE task_id = %s", (10, const.TASK_STATE_PROCESSING ,task_id))
 
     logger.info("\n\n## generating video terms")
     video_terms = params.video_terms
@@ -77,7 +78,7 @@ def start(task_id, params: VideoParams, uid):
     if not video_terms:
         sm.state.update_task(task_id, state=const.TASK_STATE_FAILED)
         with UsingMysql() as um:
-            um.execute("UPDATE ai_task_video_gen SET status = %s WHERE task_id = %s", (const.TASK_STATE_FAILED, task_id))
+            um.cursor.execute("UPDATE ai_task_video_gen SET status = %s WHERE task_id = %s", (const.TASK_STATE_FAILED, task_id))
         logger.error("failed to generate video terms.")
         return
 
@@ -97,7 +98,7 @@ def start(task_id, params: VideoParams, uid):
     sm.state.update_task(task_id, state=const.TASK_STATE_PROCESSING, progress=20)
     
     with UsingMysql() as um:
-        um.execute("UPDATE ai_task_video_gen SET percent = %s, status = %s WHERE task_id = %s", (20, const.TASK_STATE_PROCESSING, task_id))
+        um.cursor.execute("UPDATE ai_task_video_gen SET percent = %s, status = %s WHERE task_id = %s", (20, const.TASK_STATE_PROCESSING, task_id))
 
     logger.info("\n\n## generating audio")
     audio_file = path.join(utils.task_dir(task_id), f"audio.mp3")
@@ -106,7 +107,7 @@ def start(task_id, params: VideoParams, uid):
     if sub_maker is None:
         sm.state.update_task(task_id, state=const.TASK_STATE_FAILED)
         with UsingMysql() as um:
-            um.execute("UPDATE ai_task_video_gen SET status = %s WHERE task_id = %s", (const.TASK_STATE_FAILED, task_id))
+            um.cursor.execute("UPDATE ai_task_video_gen SET status = %s WHERE task_id = %s", (const.TASK_STATE_FAILED, task_id))
         logger.error(
             """failed to generate audio:
 1. check if the language of the voice matches the language of the video script.
@@ -121,7 +122,7 @@ def start(task_id, params: VideoParams, uid):
     sm.state.update_task(task_id, state=const.TASK_STATE_PROCESSING, progress=30)
     
     with UsingMysql() as um:
-        um.execute("UPDATE ai_task_video_gen SET percent = %s, status = %s WHERE task_id = %s", (30, const.TASK_STATE_PROCESSING, task_id))
+        um.cursor.execute("UPDATE ai_task_video_gen SET percent = %s, status = %s WHERE task_id = %s", (30, const.TASK_STATE_PROCESSING, task_id))
 
     subtitle_path = ""
     if params.subtitle_enabled:
@@ -147,7 +148,7 @@ def start(task_id, params: VideoParams, uid):
 
     sm.state.update_task(task_id, state=const.TASK_STATE_PROCESSING, progress=40)
     with UsingMysql() as um:
-        um.execute("UPDATE ai_task_video_gen SET percent = %s, status = %s WHERE task_id = %s", (40, const.TASK_STATE_PROCESSING, task_id))
+        um.cursor.execute("UPDATE ai_task_video_gen SET percent = %s, status = %s WHERE task_id = %s", (40, const.TASK_STATE_PROCESSING, task_id))
 
     downloaded_videos = []
     task_ids = []
@@ -182,18 +183,18 @@ def start(task_id, params: VideoParams, uid):
     if not task_ids:
         sm.state.update_task(task_id, state=const.TASK_STATE_FAILED)
         with UsingMysql() as um:
-            um.execute("UPDATE ai_task_video_gen SET status = %s WHERE task_id = %s", (const.TASK_STATE_FAILED, task_id))
+            um.cursor.execute("UPDATE ai_task_video_gen SET status = %s WHERE task_id = %s", (const.TASK_STATE_FAILED, task_id))
         logger.error(
             "failed to download videos, maybe the network is not available. if you are in China, please use a VPN.")
         return
 
     sm.state.update_task(task_id, state=const.TASK_STATE_PROCESSING, progress=50)
     with UsingMysql() as um:
-        um.execute("UPDATE ai_task_video_gen SET percent = %s, status = %s WHERE task_id = %s", (50, const.TASK_STATE_PROCESSING, task_id))
+        um.cursor.execute("UPDATE ai_task_video_gen SET percent = %s, status = %s WHERE task_id = %s", (50, const.TASK_STATE_PROCESSING, task_id))
     # images = []
     for taskId in task_ids:
         # downloaded_videos.append(material.get_video_path(taskId))
-        v = get_images(task_id=taskId)
+        v = get_images(logId=taskId, task_id=task_id)
         # images.append(v)
         url = image.merge_image_to_video_moviepy(image=v['path'], base_dir=utils.task_dir(task_id), duration=2)
         downloaded_videos.append(url)
@@ -225,7 +226,7 @@ def start(task_id, params: VideoParams, uid):
         sm.state.update_task(task_id, progress=_progress)
         
         with UsingMysql() as um:
-            um.execute("UPDATE ai_task_video_gen SET percent = %s, status = %s WHERE task_id = %s", (_progress, const.TASK_STATE_PROCESSING, task_id))
+            um.cursor.execute("UPDATE ai_task_video_gen SET percent = %s, status = %s WHERE task_id = %s", (_progress, const.TASK_STATE_PROCESSING, task_id))
 
         final_video_path = path.join(utils.task_dir(task_id), f"final-{index}.mp4")
 
@@ -252,7 +253,7 @@ def start(task_id, params: VideoParams, uid):
     }
     sm.state.update_task(task_id, state=const.TASK_STATE_COMPLETE, progress=100, **kwargs)
     with UsingMysql() as um:
-        um.execute("UPDATE ai_task_video_gen SET percent = %s, status = %s WHERE task_id = %s", (100, const.TASK_STATE_COMPLETE, task_id))
+        um.cursor.execute("UPDATE ai_task_video_gen SET percent = %s, status = %s WHERE task_id = %s", (100, const.TASK_STATE_COMPLETE, task_id))
     return kwargs
 
 # def start_test(task_id, params: VideoParams):
@@ -266,7 +267,7 @@ def start_generate(task_id, params: VideoParams, uid: int):
     with UsingMysql() as um:
         task = um.fetch_one("SELECT * FROM ai_task_video_gen WHERE task_id = %s", (task_id))
         if task:
-            um.execute("UPDATE ai_task_video_gen SET percent = %s, status =  %s  WHERE task_id = %s", (5, const.TASK_STATE_PROCESSING, task_id))
+            um.cursor.execute("UPDATE ai_task_video_gen SET percent = %s, status =  %s  WHERE task_id = %s", (5, const.TASK_STATE_PROCESSING, task_id))
     
     video_script = params.video_script.strip()
     video_subject = params.video_subject.strip()
@@ -286,7 +287,7 @@ def start_generate(task_id, params: VideoParams, uid: int):
     if not video_script:
         sm.state.update_task(task_id, state=const.TASK_STATE_FAILED)
         with UsingMysql() as um:
-            um.execute("UPDATE ai_task_video_gen SET status = %s WHERE task_id = %s", (const.TASK_STATE_FAILED, task_id))
+            um.cursor.execute("UPDATE ai_task_video_gen SET status = %s WHERE task_id = %s", (const.TASK_STATE_FAILED, task_id))
         logger.error("failed to generate video script.")
         return
     
