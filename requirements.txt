@@ -26,3 +26,4 @@ azure-cognitiveservices-speech~=1.37.0
 git-changelog~=2.5.2
 pymysql~=1.1.1
 cryptography~=42.0.8
+polling~=0.3.2

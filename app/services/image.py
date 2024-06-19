@@ -2,9 +2,9 @@ import json
 import os
 import random
 from urllib.parse import urlencode
-
+import polling
 import math
-import re
+import time
 import asyncio
 
 from loguru import logger
@@ -39,8 +39,8 @@ def generate_images(task_id: str,
                     num: int = 1,):
     images = []
     access_token = getAccessToken()
-    # url  = "https://aip.baidubce.com/rpc/2.0/ernievilg/v1/txt2imgv2?access_token=" + access_token
-    url = 'http://172.16.110.197:3000/generateImage'
+    url  = "https://aip.baidubce.com/rpc/2.0/ernievilg/v1/txt2imgv2?access_token=" + access_token
+    # url = 'http://192.168.10.106:3000/generateImage'
     logger.info(f"generate_images: {url}")  
     params = json.dumps({
         "prompt": text,
@@ -97,7 +97,7 @@ def get_images(logId: str, task_id: str):
     # access_token` is a commented-out line of code in the Python script. It seems to be a placeholder
     # or a reference to an API endpoint for getting images using the Baidu AI platform.
     url  = "https://aip.baidubce.com/rpc/2.0/ernievilg/v1/getImgv2?access_token=" + access_token
-    # url = 'http://172.16.110.197:3000/result'
+    # url = 'http://192.168.10.106:3000/result'
     logger.info(f"generate_images: {url} {access_token}")  
     params = json.dumps({
        "task_id": logId
@@ -108,20 +108,29 @@ def get_images(logId: str, task_id: str):
         'Accept': 'application/json'
     }
     
-    response = requests.request("POST", url, headers=headers, data=params)
-    logger.info(f"generate_images response.text: {response.text}")
-    res = json.loads(response.text)
+    # response = requests.request("POST", url, headers=headers, data=params)
+    # logger.info(f"generate_images response.text: {response.text}")
+    # res = json.loads(response.text)
     
-    if "data" in res:
-        task_progress = res["data"]["task_progress"]
-        if task_progress == 0:
-
-            return get_images(logId, task_id=task_id)
-        else:
-            img = res["data"]["sub_task_result_list"][0]['final_image_list'][0]['img_url']
-            img = requests.get(img)
-            with open(file_path, "wb") as f:
-                f.write(img.content)
+    result = polling.poll(
+        lambda: requests.request("POST", url, headers=headers, data=params).json(),
+        check_success=lambda res: res["data"] and res["data"]["task_progress"] == 1,
+        step=2,
+        ignore_exceptions=(requests.exceptions.ConnectionError,),
+        poll_forever=True
+        )
+    
+    logger.info(f"generate_images result: {result}")
+    
+    if "data" in result:
+        imgurl = result["data"]["sub_task_result_list"][0]['final_image_list'][0]['img_url']
+        img = requests.get(imgurl)
+        with open(file_path, "wb") as f:
+            f.write(img.content)
+            sql = f"update ai_task_img_gen set status = '{const.TASK_STATE_COMPLETE}', finished_at = '{time.time()}', data = '{imgurl}' where taskId = '{task_id}'"
+            logger.info(f"generate_images update sql: {sql}")
+            with UsingMysql(log_time=True) as um:
+                um.cursor.execute(sql)
             return {
                 "path": file_path
             }
@@ -130,6 +139,14 @@ def get_images(logId: str, task_id: str):
             "path": None
         }
 
+async def reGet(logId, task_id):
+    loop = asyncio.get_event_loop()
+    result = loop.run_until_complete(get_images(logId, task_id))
+    loop.close()
+    if result["path"]:
+        return result
+    await asyncio.sleep(10)
+    return reGet(logId, task_id=task_id)
 
 if __name__ == "__main__":
     print("ls")
