@@ -102,16 +102,16 @@ if __name__ == '__main__':
 
 
 def get_uid(request: Request):
-  request_id = base.get_task_id(request)
-  logger.info(f"request {request} {request.cookies.keys()} {'token' in request.cookies.keys()}")
+
+#   logger.info(f"request {request} {request.cookies.keys()} {'token' in request.cookies.keys()}")
   if not request.cookies or 'token' not in request.cookies:
-      raise HttpException(task_id=None, status_code=401, message=f"{request_id}: Unauthorized")
+      raise HttpException(task_id=None, status_code=401, message="Unauthorized")
   token =request.cookies["token"]
 
   with UsingMysql() as ms:
       userToken = ms.fetch_one("SELECT uid FROM ai_user_tokens WHERE token = %s", (token))
       if not userToken:
           logger.error(f"token {token} is invalid.")
-          raise HttpException(task_id=None, status_code=401, message=f"{request_id}: Unauthorized")
+          raise HttpException(task_id=None, status_code=401, message="Unauthorized")
       uid = userToken["uid"]
   return uid

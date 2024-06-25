@@ -93,9 +93,24 @@ def get_task(request: Request, task_id: str = Path(..., description="Task ID"), 
     if not endpoint:
         endpoint = str(request.base_url)
     endpoint = endpoint.rstrip("/")
-
+    
+    logger.info(f"endpoint: {endpoint}")
     request_id = base.get_task_id(request)
     task = sm.state.get_task(task_id)
+    uid = mysql_utils.get_uid(request)
+    with mysql_utils.UsingMysql() as ms:
+        task_db = ms.fetch_one("SELECT * FROM ai_task_video_gen WHERE task_id = %s AND uid = %s", (task_id, uid))
+        if not task: 
+            task = task_db
+        elif task_db:
+            task['video_script'] = task_db['script']
+            task['video_style'] = task_db['style']
+            task['video_resolution'] = task_db['resolution']
+            task['video_subject'] = task_db['subject']
+            task['video_aspect'] = task_db['aspect']
+        if task_db:
+            image_task = ms.fetch_all("SELECT * FROM ai_task_img_gen WHERE vid_id = %s", task_db['vid_id'])
+            task['image_task'] = image_task
     if task:
         task_dir = utils.task_dir()
 

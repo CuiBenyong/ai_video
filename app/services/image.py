@@ -43,7 +43,7 @@ def generate_images(task_id: str,
     # url = 'http://192.168.10.106:3000/generateImage'
     logger.info(f"generate_images: {url}")  
     params = json.dumps({
-        "prompt": text,
+        "prompt": f"{text} 使用{style}风格",
         "image_num": num,
         "width": 720,
         "height": 1280,

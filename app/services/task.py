@@ -6,7 +6,7 @@ from os import path
 
 from app.services.image import generate_images, get_images
 from loguru import logger
-
+import time
 from app.config import config
 from app.models import const
 from app.models.schema import VideoParams, VideoConcatMode
@@ -177,7 +177,7 @@ def start(task_id, params: VideoParams, uid):
         
         for i in range(paragraph_number):
             index = i + 1
-            taskId = generate_images(task_id=task_id, text=video_script_terms[i], style="超现实主义", num=1,video_aspect=params.video_aspect)
+            taskId = generate_images(task_id=task_id, text=video_script_terms[i], style="写实", num=1,video_aspect=params.video_aspect)
             task_ids.append(taskId)
         
     if not task_ids:
@@ -253,7 +253,7 @@ def start(task_id, params: VideoParams, uid):
     }
     sm.state.update_task(task_id, state=const.TASK_STATE_COMPLETE, progress=100, **kwargs)
     with UsingMysql() as um:
-        um.cursor.execute("UPDATE ai_task_video_gen SET percent = %s, status = %s WHERE task_id = %s", (100, const.TASK_STATE_COMPLETE, task_id))
+        um.cursor.execute("UPDATE ai_task_video_gen SET percent = %s, status = %s, finished_at = %s WHERE task_id = %s", (100, const.TASK_STATE_COMPLETE, time.now(), task_id))
     return kwargs
 
 # def start_test(task_id, params: VideoParams):
